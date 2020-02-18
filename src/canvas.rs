@@ -1,4 +1,5 @@
 use image::{ImageBuffer, Rgb};
+use crate::vec3::Vec3;
 
 pub struct Canvas {
     buffer: ImageBuffer<Rgb<u8>, Vec<u8>>,
@@ -53,4 +54,45 @@ impl Canvas {
             }
         }
     }
+
+    pub fn triangle(&mut self, t0: (u32, u32), t1: (u32, u32), t2: (u32, u32)) {
+        let max_y = t0.1.max(t1.1.max(t2.1));
+        let max_x = t0.0.max(t1.0.max(t2.0));
+        let min_y = t0.1.min(t1.1.min(t2.1));
+        let min_x = t0.0.min(t1.0.min(t2.0));
+
+        for x in min_x..max_x {
+            for y in min_y..max_x {
+                let bc = to_barycentric([t0, t1, t2], (x, y));
+                if [bc.x, bc.y, bc.z].iter().any(|coord| coord < &0.0) {
+                    continue;
+                }
+                self.buffer.put_pixel(x, y, self.current_color);
+            }
+        }
+    }
+}
+
+fn to_barycentric(points: [(u32, u32); 3], point: (u32, u32)) -> Vec3 {
+    let vec_a = Vec3::new(
+        points[2].0 as f32 - points[0].0 as f32,
+        points[1].0 as f32 - points[0].0 as f32,
+        points[0].0 as f32 - point.0 as f32,
+    );
+    let vec_b = Vec3::new(
+        points[2].1 as f32 - points[0].1 as f32,
+        points[1].1 as f32 - points[0].1 as f32,
+        points[0].1 as f32 - point.1 as f32,
+    );
+    let u = vec_a.cross_product(&vec_b);
+
+    if u.z.abs() < 1. {
+        return Vec3::new(-1., 1., 1.);
+    }
+
+    Vec3::new(
+        1. - (u.x + u.y) / u.z,
+        u.y / u.z,
+        u.x / u.z
+    )
 }
